@@ -37,10 +37,46 @@ document.addEventListener("DOMContentLoaded", () => {
         <p>${activity.description}</p>
         <p><strong>Schedule:</strong> ${activity.schedule}</p>
         <p><strong>Participants:</strong></p>
-        <ul>${activity.participants.map(participant => `<li>${participant}</li>`).join('')}</ul>
+        <ul class="participants-list">${activity.participants.map(participant => `<li class="participant-item"><span>${participant}</span><button class="delete-btn" data-activity="${activityName}" data-email="${participant}" title="Remove participant">×</button></li>`).join('')}</ul>
       `;
       activitiesList.appendChild(activityCard);
     }
+    
+    // Add event listeners to delete buttons
+    attachDeleteListeners();
+  }
+  
+  function attachDeleteListeners() {
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const activityName = button.getAttribute('data-activity');
+        const email = button.getAttribute('data-email');
+        
+        if (confirm(`Remove ${email} from ${activityName}?`)) {
+          try {
+            const response = await fetch(
+              `/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`,
+              {
+                method: "POST",
+              }
+            );
+            
+            if (response.ok) {
+              // Refresh activities to show updated list
+              fetchActivities();
+            } else {
+              const result = await response.json();
+              alert(result.detail || "Failed to remove participant");
+            }
+          } catch (error) {
+            alert("Failed to remove participant. Please try again.");
+            console.error("Error removing participant:", error);
+          }
+        }
+      });
+    });
   }
 
   // Handle form submission
