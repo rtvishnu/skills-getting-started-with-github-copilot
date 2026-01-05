@@ -10,25 +10,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const response = await fetch("/activities");
       const activities = await response.json();
 
-      // Clear loading message
-      activitiesList.innerHTML = "";
+      displayActivities(activities);
 
       // Populate activities list
       Object.entries(activities).forEach(([name, details]) => {
-        const activityCard = document.createElement("div");
-        activityCard.className = "activity-card";
-
-        const spotsLeft = details.max_participants - details.participants.length;
-
-        activityCard.innerHTML = `
-          <h4>${name}</h4>
-          <p>${details.description}</p>
-          <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
-        `;
-
-        activitiesList.appendChild(activityCard);
-
         // Add option to select dropdown
         const option = document.createElement("option");
         option.value = name;
@@ -39,6 +24,59 @@ document.addEventListener("DOMContentLoaded", () => {
       activitiesList.innerHTML = "<p>Failed to load activities. Please try again later.</p>";
       console.error("Error fetching activities:", error);
     }
+  }
+
+  function displayActivities(activities) {
+    activitiesList.innerHTML = ""; // Clear loading message
+
+    for (const [activityName, activity] of Object.entries(activities)) {
+      const activityCard = document.createElement("div");
+      activityCard.className = "activity-card";
+      activityCard.innerHTML = `
+        <h4>${activityName}</h4>
+        <p>${activity.description}</p>
+        <p><strong>Schedule:</strong> ${activity.schedule}</p>
+        <p><strong>Participants:</strong></p>
+        <ul class="participants-list">${activity.participants.map(participant => `<li class="participant-item"><span>${participant}</span><button class="delete-btn" data-activity="${activityName}" data-email="${participant}" title="Remove participant">×</button></li>`).join('')}</ul>
+      `;
+      activitiesList.appendChild(activityCard);
+    }
+    
+    // Add event listeners to delete buttons
+    attachDeleteListeners();
+  }
+  
+  function attachDeleteListeners() {
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+    deleteButtons.forEach(button => {
+      button.addEventListener('click', async (event) => {
+        event.preventDefault();
+        const activityName = button.getAttribute('data-activity');
+        const email = button.getAttribute('data-email');
+        
+        if (confirm(`Remove ${email} from ${activityName}?`)) {
+          try {
+            const response = await fetch(
+              `/activities/${encodeURIComponent(activityName)}/unregister?email=${encodeURIComponent(email)}`,
+              {
+                method: "POST",
+              }
+            );
+            
+            if (response.ok) {
+              // Refresh activities to show updated list
+              fetchActivities();
+            } else {
+              const result = await response.json();
+              alert(result.detail || "Failed to remove participant");
+            }
+          } catch (error) {
+            alert("Failed to remove participant. Please try again.");
+            console.error("Error removing participant:", error);
+          }
+        }
+      });
+    });
   }
 
   // Handle form submission
